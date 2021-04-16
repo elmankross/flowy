@@ -11,7 +11,7 @@ namespace Engine.Activities
         public Task ExecuteAsync(Func<Task> next, CancellationToken token = default)
         {
             Debug.WriteLine("Executed async.", "WriteToConsole");
-            return ExecuteAsync(null, next, token);
+            return ExecuteAsync("<no text>", next, token);
         }
 
         public Task ExecuteAsync(string source, Func<Task> next, CancellationToken token = default)

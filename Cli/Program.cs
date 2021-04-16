@@ -10,20 +10,20 @@ namespace Cli
         static async Task Main(string[] args)
         {
             var workflow = new WorkflowBuilder()
-                .When<Timer>(x => x.Interval = TimeSpan.FromSeconds(5))
-                .Then<Variable<int>, int>(x => x.Value = new Random().Next(0, 100))
-                .Then<HttpRequest<int, string>, string>(builder =>
+                .When<Timer>(x => x.Interval = TimeSpan.FromSeconds(15))
+                .Then<HttpRequest<It.NothingToAccept, string>, It.NothingToAccept, string>(builder =>
                 {
                     builder.HttpClient = new System.Net.Http.HttpClient
                     {
                         BaseAddress = new Uri("https://jsonplaceholder.typicode.com")
                     };
-                    builder.Selector = (id, client) => client.GetStringAsync("todos/" + id);
-                }, x => x.ToString())
-                .Then<WriteToConsole>(_ => { })
+                    var id = new Random().Next(0, 100);
+                    builder.Selector = (_, client) => client.GetStringAsync("todos/" + id);
+                }, x => string.Empty)
+                .Then<WriteToConsole, string>(_ => { })
                 .Build();
 
-            await workflow.ExecuteAsync(() => Task.CompletedTask);
+            await workflow.ExecuteAsync(default, () => Task.CompletedTask);
 
             while (true)
             {
