@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ namespace Engine.Activities
     {
         public TimeSpan Interval { get; set; }
 
-        private readonly System.Timers.Timer _timer;
+        private System.Timers.Timer _timer;
 
         public void Dispose()
         {
@@ -19,9 +20,11 @@ namespace Engine.Activities
 
         public Task ExecuteAsync(Func<Task> next, CancellationToken token = default)
         {
+            Debug.WriteLine("Executed async.", "Timer");
+            _timer = new System.Timers.Timer(Interval.TotalMilliseconds);
             _timer.Elapsed += (_, __) => next();
             _timer.Start();
-            return Task.CompletedTask;
+            return next();
         }
     }
 }
