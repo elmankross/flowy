@@ -10,8 +10,8 @@ namespace Cli
         static async Task Main(string[] args)
         {
             var workflow = new WorkflowBuilder()
-                .When<Timer>(x => x.Interval = TimeSpan.FromSeconds(15))
-                .Then<HttpRequest<It.NothingToAccept, string>, It.NothingToAccept, string>(builder =>
+                .When<TimerActivity>(x => x.Interval = TimeSpan.FromSeconds(600))
+                .Then<HttpRequestActivity<It.NothingToAccept, string>, It.NothingToAccept, string>(builder =>
                 {
                     builder.HttpClient = new System.Net.Http.HttpClient
                     {
@@ -19,11 +19,15 @@ namespace Cli
                     };
                     var id = new Random().Next(0, 100);
                     builder.Selector = (_, client) => client.GetStringAsync("todos/" + id);
-                }, x => string.Empty)
-                .Then<WriteToConsole, string>(_ => { })
+                })
+                .Then<ConsoleActivity, string>()
+                .Then<ConverterActivity<string, string>, string, string>(builder =>
+                {
+                    builder.Selector = (_) => _;
+                })
                 .Build();
 
-            await workflow.ExecuteAsync(default, () => Task.CompletedTask);
+            await workflow.ExecuteAsync("aaa", x => Task.CompletedTask);
 
             while (true)
             {

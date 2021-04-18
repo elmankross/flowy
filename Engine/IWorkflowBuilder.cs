@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 
 namespace Engine
 {
@@ -8,7 +7,7 @@ namespace Engine
     /// </summary>
     public interface IWorkflowBuilder
     {
-        IActivityBuilder When<TSource>(Action<TSource> builder)
+        IActivityBuilder When<TSource>(Action<TSource> builder = null)
             where TSource : IActivity, new();
     }
 
@@ -18,9 +17,9 @@ namespace Engine
     /// </summary>
     /// <typeparam name="TActivity"></typeparam>
     /// <typeparam name="TSource"></typeparam>
-    /// <typeparam name="TSourceResult"></typeparam>
+    /// <typeparam name="TCurrentResult"></typeparam>
     /// <typeparam name="TNextResult"></typeparam>
-    public interface IActivityBuilder<TActivity, TSource, TSourceResult, TNextResult> : IActivityBuilder<TActivity, TSource>
+    public interface IActivityBuilder<TActivity, TSource, TCurrentResult, TNextResult> : IActivityBuilder<TActivity, TSource>
         where TActivity : IActivity<TSource, TNextResult>
     {
         new IActivity<TSource, TNextResult> Build();
@@ -35,20 +34,7 @@ namespace Engine
     public interface IActivityBuilder<TActivity, TSource> : IActivityBuilder
         where TActivity : IActivity<TSource>
     {
-        new IActivity<TSource> Build();
-
-        /// <summary>
-        /// Use new activity with new result
-        /// </summary>
-        /// <typeparam name="TNextActivity"></typeparam>
-        /// <typeparam name="TNewResult"></typeparam>
-        /// <param name="builder"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
-        IActivityBuilder<TNextActivity, TSource, TNewResult, TNewResult> Then<TNextActivity, TNewResult>(
-            Action<TNextActivity> builder,
-            Func<TSource, TNewResult> selector)
-            where TNextActivity : IActivity<TSource, TNewResult>, new();
+        new Activity<TSource> Build();
     }
 
 
@@ -57,7 +43,7 @@ namespace Engine
     /// </summary>
     public interface IActivityBuilder
     {
-        IActivity Build();
+        Activity Build();
 
         /// <summary>
         /// Use activity without source and result
@@ -66,7 +52,7 @@ namespace Engine
         /// <param name="builder"></param>
         /// <returns></returns>
         IActivityBuilder Then<TActivity>(
-            Action<TActivity> builder)
+            Action<TActivity> builder = null)
             where TActivity : IActivity, new();
 
         /// <summary>
@@ -77,7 +63,7 @@ namespace Engine
         /// <param name="builder"></param>
         /// <returns></returns>
         IActivityBuilder<TActivity, TSource> Then<TActivity, TSource>(
-            Action<TActivity> builder)
+            Action<TActivity> builder = null)
             where TActivity : IActivity<TSource>, new();
 
         /// <summary>
@@ -87,26 +73,10 @@ namespace Engine
         /// <typeparam name="TSource"></typeparam>
         /// <typeparam name="TResult"></typeparam>
         /// <param name="builder"></param>
-        /// <param name="selector"></param>
         /// <returns></returns>
-        IActivityBuilder<TActivity, TSource, TResult, TResult> Then<TActivity, TSource, TResult>(
-            Action<TActivity> builder,
-            Func<TSource, TResult> selector)
+        IActivityBuilder<TActivity, TSource, TSource, TResult> Then<TActivity, TSource, TResult>(
+            Action<TActivity> builder = null)
             where TActivity : IActivity<TSource, TResult>, new();
-
-        /// <summary>
-        /// Use activity with soure and same result
-        /// </summary>
-        /// <typeparam name="TActivity"></typeparam>
-        /// <typeparam name="TSource"></typeparam>
-        /// <typeparam name="TResult"></typeparam>
-        /// <param name="builder"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
-        IActivityBuilder<TActivity, TSource, TSourceResult, TNextResult> Then<TActivity, TSource, TSourceResult, TNextResult>(
-            Action<TActivity> builder,
-            Func<TSource, TNextResult> selector)
-            where TActivity : IActivity<TSource, TNextResult>, new();
     }
 
 
@@ -115,10 +85,10 @@ namespace Engine
     /// </summary>
     public class WorkflowBuilder : IWorkflowBuilder
     {
-        public IActivityBuilder When<TActivity>(Action<TActivity> builder)
+        public IActivityBuilder When<TActivity>(Action<TActivity> builder = null)
             where TActivity : IActivity, new()
         {
-            return new ActivityBuilder(builder.SetupActivity(), null);
+            return new ActivityBuilder(null, builder.CreateActivity());
         }
     }
 
@@ -128,49 +98,49 @@ namespace Engine
     /// </summary>
     /// <typeparam name="TActivity"></typeparam>
     /// <typeparam name="TSource"></typeparam>
-    /// <typeparam name="TSourceResult"></typeparam>
+    /// <typeparam name="TCurrentResult"></typeparam>
     /// <typeparam name="TNextResult"></typeparam>
-    public class ActivityBuilder<TActivity, TSource, TSourceResult, TNextResult> : ActivityBuilder<TActivity, TSource>
-        , IActivityBuilder<TActivity, TSource, TSourceResult, TNextResult>
+    public class ActivityBuilder<TActivity, TSource, TCurrentResult, TNextResult> : ActivityBuilder<TActivity, TSource>
+        , IActivityBuilder<TActivity, TSource, TCurrentResult, TNextResult>
         where TActivity : IActivity<TSource, TNextResult>
     {
-        new protected readonly IActivity<TSource, TSourceResult> _current;
-        new protected readonly IActivity<TSourceResult, TNextResult> _next;
+        private readonly IActivity<TSource, TCurrentResult> _current;
+        private readonly IActivity<TCurrentResult, TNextResult> _next;
 
         #region .ctr from Activity{T1,T2,T3}
 
-        public ActivityBuilder(IActivity<TSource, TSourceResult> current, IActivity<TSourceResult, TNextResult> next)
+        public ActivityBuilder(IActivity<TSource, TCurrentResult> current, IActivity<TCurrentResult, TNextResult> next)
             : base(null, null)
         {
             _current = current;
             _next = next;
         }
 
-        public ActivityBuilder(IActivity<TSource, TSourceResult> current, IActivity<TSourceResult> next)
+        public ActivityBuilder(IActivity<TSource, TCurrentResult> current, IActivity<TCurrentResult> next)
             : base(null, next)
         {
             _current = current;
         }
 
-        public ActivityBuilder(IActivity<TSource, TSourceResult> current, IActivity next)
+        public ActivityBuilder(IActivity<TSource, TCurrentResult> current, IActivity next)
             : base(null, next)
         {
             _current = current;
         }
 
-        public ActivityBuilder(IActivity<TSource> current, IActivity<TSourceResult, TNextResult> next)
+        public ActivityBuilder(IActivity<TSource> current, IActivity<TCurrentResult, TNextResult> next)
             : base(current, null)
         {
             _next = next;
         }
 
-        public ActivityBuilder(IActivity current, IActivity<TSourceResult, TNextResult> next)
+        public ActivityBuilder(IActivity current, IActivity<TCurrentResult, TNextResult> next)
             : base(current, null)
         {
             _next = next;
         }
 
-        public ActivityBuilder(IActivity<TSource> current, IActivity<TSourceResult> next)
+        public ActivityBuilder(IActivity<TSource> current, IActivity<TCurrentResult> next)
             : base(current, next)
         {
         }
@@ -180,42 +150,74 @@ namespace Engine
         {
         }
 
-        public ActivityBuilder(IActivity current, IActivity<TSourceResult> next)
-            : base(current, next)
-        {
-        }
+        //public ActivityBuilder(IActivity current, IActivity<TCurrentResult> next)
+        //    : base(current, next)
+        //{
+        //}
 
-        public ActivityBuilder(IActivity current, IActivity next)
-            : base(current, next)
-        {
-        }
+        //public ActivityBuilder(IActivity current, IActivity next)
+        //    : base(current, next)
+        //{
+        //}
 
         #endregion
 
-        IActivity<TSource, TNextResult> IActivityBuilder<TActivity, TSource, TSourceResult, TNextResult>.Build()
-        {
-            if (_current != null && _next != null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is presented", "ActivityBuilder{T1,T2,T3,T4}");
-                return new Activity<TSource, TSourceResult, TNextResult>(_current, _next);
-            }
-            else if (_current != null && _next == null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is not presented", "ActivityBuilder{T1,T2,T3,T4}");
-                return new Activity<TSource, TSourceResult, TNextResult>(_current, base._next);
-            }
-            else if (_current == null && _next != null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is presented", "ActivityBuilder{T1,T2,T3,T4}");
-                return new Activity<TSource, TSourceResult, TNextResult>(base._current, _next);
-            }
-            else if (_current == null && _next == null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is not presented", "ActivityBuilder{T1,T2,T3,T4}");
-                return new Activity<TSource, TSourceResult, TNextResult>(base._current, base._next);
-            }
+        IActivity<TSource, TNextResult> IActivityBuilder<TActivity, TSource, TCurrentResult, TNextResult>.Build()
+            => GetBoxedCurrentActivity();
 
-            throw new NotImplementedException("There is no suitable build methods.");
+        public override IActivityBuilder Then<TNewActivity>(Action<TNewActivity> builder = null)
+        {
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder(current, next);
+        }
+
+        override public IActivityBuilder<TNewActivity, TNewSource> Then<TNewActivity, TNewSource>(
+            Action<TNewActivity> builder = null)
+        {
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder<TNewActivity, TNewSource>(current, next);
+        }
+
+        public override IActivityBuilder<TNewActivity, TNewSource, TNewSource, TNewResult> Then<TNewActivity, TNewSource, TNewResult>(Action<TNewActivity> builder = null)
+        {
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder<TNewActivity, TNewSource, TNewSource, TNewResult>(current, next);
+        }
+
+        private Activity<TSource, TCurrentResult, TNextResult> GetBoxedCurrentActivity()
+        {
+            Activity<TSource, TCurrentResult, TNextResult> current = null;
+            ActivityExtensions.Fork(_current, _next,
+                bothExists: () => current = new Activity<TSource, TCurrentResult, TNextResult>(_current, _next),
+                currentExists: () =>
+                {
+                    var second = SecondLayer.Build();
+                    if (second.Next != null)
+                    {
+                        current = new Activity<TSource, TCurrentResult, TNextResult>(_current, second.Next);
+                    }
+                    else
+                    {
+                        current = new Activity<TSource, TCurrentResult, TNextResult>(_current, ((Activity)second).Next);
+                    }
+                },
+                nextExists: () =>
+                {
+                    var second = SecondLayer.Build();
+                    if (second.Current != null)
+                    {
+                        current = new Activity<TSource, TCurrentResult, TNextResult>(second.Current, _next);
+                    }
+                    else
+                    {
+                        current = new Activity<TSource, TCurrentResult, TNextResult>(((Activity)second).Current, _next);
+                    }
+                },
+                bothEmpty: () => current = SecondLayer.Build().ConvertTo<TSource, TCurrentResult, TNextResult>());
+            return current;
         }
     }
 
@@ -229,8 +231,9 @@ namespace Engine
         , IActivityBuilder<TActivity, TSource>
         where TActivity : IActivity<TSource>
     {
-        new protected readonly IActivity<TSource> _current;
-        new protected readonly IActivity<TSource> _next;
+        protected IActivityBuilder<TActivity, TSource> SecondLayer { get; }
+        private readonly IActivity<TSource> _current;
+        private readonly IActivity<TSource> _next;
 
         #region .ctr from Activity{T}
 
@@ -239,59 +242,66 @@ namespace Engine
         {
             _current = current;
             _next = next;
+            SecondLayer = this;
         }
 
         public ActivityBuilder(IActivity<TSource> current, IActivity next)
             : base(null, next)
         {
             _current = current;
+            SecondLayer = this;
         }
 
         public ActivityBuilder(IActivity current, IActivity<TSource> next)
             : base(current, null)
         {
             _next = next;
+            SecondLayer = this;
         }
 
-        public ActivityBuilder(IActivity current, IActivity next)
-            : base(current, next)
-        {
-        }
+
+        //public ActivityBuilder(IActivity current, IActivity next)
+        //    : base(current, next)
+        //{
+        //}
 
         #endregion
 
-        IActivity<TSource> IActivityBuilder<TActivity, TSource>.Build()
-        {
-            if (_current != null && _next != null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is presented", "ActivityBuilder{T1,T2}");
-                return new Activity<TSource>(_current, _next);
-            }
-            else if (_current != null && _next == null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is not presented", "ActivityBuilder{T1,T2}");
-                return new Activity<TSource>(_current, base._next);
-            }
-            else if (_current == null && _next != null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is presented", "ActivityBuilder{T1,T2}");
-                return new Activity<TSource>(base._current, _next);
-            }
-            else if (_current == null && _next == null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is not presented", "ActivityBuilder{T1,T2}");
-                return new Activity<TSource>(base._current, base._next);
-            }
+        Activity<TSource> IActivityBuilder<TActivity, TSource>.Build()
+            => GetBoxedCurrentActivity();
 
-            throw new NotImplementedException("There is no suitable build methods.");
+        public override IActivityBuilder Then<TNewActivity>(Action<TNewActivity> builder = null)
+        {
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder(current, next);
         }
 
-        public IActivityBuilder<TNextActivity, TSource, TNewResult, TNewResult> Then<TNextActivity, TNewResult>(
-            Action<TNextActivity> builder,
-            Func<TSource, TNewResult> selector)
-            where TNextActivity : IActivity<TSource, TNewResult>, new()
+        public override IActivityBuilder<TNewActivity, TNewSource> Then<TNewActivity, TNewSource>(
+            Action<TNewActivity> builder = null)
         {
-            throw new NotImplementedException();
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder<TNewActivity, TNewSource>(current, next);
+        }
+
+        public override IActivityBuilder<TNewActivity, TNewSource, TNewSource, TNewResult> Then<TNewActivity, TNewSource, TNewResult>(
+            Action<TNewActivity> builder = null)
+        {
+            var current = GetBoxedCurrentActivity();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder<TNewActivity, TNewSource, TNewSource, TNewResult>(current, next);
+        }
+
+        private Activity<TSource> GetBoxedCurrentActivity()
+        {
+            Activity<TSource> current = null;
+            ActivityExtensions.Fork(_current, _next,
+                bothExists: () => current = new Activity<TSource>(_current, _next),
+                currentExists: () => current = new Activity<TSource>(_current, FirstLayer.Build().Next),
+                nextExists: () => current = new Activity<TSource>(FirstLayer.Build().Current, _next),
+                bothEmpty: () => current = FirstLayer.Build().ConvertTo<TSource>());
+            return current;
         }
     }
 
@@ -301,57 +311,44 @@ namespace Engine
     /// </summary>
     public class ActivityBuilder : IActivityBuilder
     {
-        protected readonly IActivity _current;
-        protected readonly IActivity _next;
+        protected IActivityBuilder FirstLayer { get; }
+        private readonly IActivity _current;
+        private readonly IActivity _next;
 
         public ActivityBuilder(IActivity current, IActivity next)
         {
             _current = current;
             _next = next;
+            FirstLayer = this;
         }
 
-        public IActivity Build()
-        {
-            Debug.WriteLine("Executing build...", "ActivityBuilder");
-            return new Activity(_current, _next);
-        }
+        public Activity Build() => new Activity(_current, _next);
 
-        public IActivityBuilder Then<TActivity>(
-            Action<TActivity> builder)
+        public virtual IActivityBuilder Then<TActivity>(
+            Action<TActivity> builder = null)
             where TActivity : IActivity, new()
         {
-            var current = new Activity(_current, _next);
-            var next = builder.SetupActivity();
+            var current = Build();
+            var next = builder.CreateActivity();
             return new ActivityBuilder(current, next);
         }
 
-        public IActivityBuilder<TActivity, TSource> Then<TActivity, TSource>(
-            Action<TActivity> builder)
+        public virtual IActivityBuilder<TActivity, TSource> Then<TActivity, TSource>(
+            Action<TActivity> builder = null)
             where TActivity : IActivity<TSource>, new()
         {
-            var current = new Activity(_current, _next);
-            var next = builder.SetupActivity();
+            var current = Build();
+            var next = builder.CreateActivity();
             return new ActivityBuilder<TActivity, TSource>(current, next);
         }
 
-        public IActivityBuilder<TActivity, TSource, TResult, TResult> Then<TActivity, TSource, TResult>(
-            Action<TActivity> builder,
-            Func<TSource, TResult> selector)
+        public virtual IActivityBuilder<TActivity, TSource, TSource, TResult> Then<TActivity, TSource, TResult>(
+            Action<TActivity> builder = null)
             where TActivity : IActivity<TSource, TResult>, new()
         {
-            var current = new Activity(_current, _next);
-            var next = builder.SetupActivity();
-            return new ActivityBuilder<TActivity, TSource, TResult, TResult>(current, next);
-        }
-
-        public IActivityBuilder<TActivity, TSource, TSourceResult, TNextResult> Then<TActivity, TSource, TSourceResult, TNextResult>(
-            Action<TActivity> builder,
-            Func<TSource, TNextResult> selector)
-            where TActivity : IActivity<TSource, TNextResult>, new()
-        {
-            var current = new Activity(_current, _next);
-            var next = builder.SetupActivity();
-            return new ActivityBuilder<TActivity, TSource, TSourceResult, TNextResult>(current, next);
+            var current = Build();
+            var next = builder.CreateActivity();
+            return new ActivityBuilder<TActivity, TSource, TSource, TResult>(current, next);
         }
     }
 }

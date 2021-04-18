@@ -12,7 +12,7 @@ namespace Engine
     /// <typeparam name="TResult"></typeparam>
     public interface IActivity<TSource, TResult> : IActivity<TSource>
     {
-        public Task ExecuteAsync(TSource source, Func<TResult, Task> next, CancellationToken token = default);
+        public Task ExecuteAsync(TSource source, Func<TResult, Task> next = default, CancellationToken token = default);
     }
 
     /// <summary>
@@ -21,7 +21,7 @@ namespace Engine
     /// <typeparam name="TSource"></typeparam>
     public interface IActivity<TSource> : IActivity
     {
-        public Task ExecuteAsync(TSource source, Func<Task> next, CancellationToken token = default);
+        public Task ExecuteAsync(TSource source, Func<Task> next = default, CancellationToken token = default);
     }
 
     /// <summary>
@@ -29,7 +29,7 @@ namespace Engine
     /// </summary>
     public interface IActivity
     {
-        public Task ExecuteAsync(Func<Task> next, CancellationToken token = default);
+        public Task ExecuteAsync(Func<Task> next = default, CancellationToken token = default);
     }
 
 
@@ -39,42 +39,43 @@ namespace Engine
     /// <typeparam name="TSource"></typeparam>
     /// <typeparam name="TSourceResult"></typeparam>
     /// <typeparam name="TNextResult"></typeparam>
+    [DebuggerDisplay("{Current} -> {Next}")]
     public class Activity<TSource, TSourceResult, TNextResult> : Activity<TSource>, IActivity<TSource, TNextResult>
     {
-        private readonly IActivity<TSource, TSourceResult> _current;
-        private readonly IActivity<TSourceResult, TNextResult> _next;
+        new public IActivity<TSource, TSourceResult> Current { get; }
+        new public IActivity<TSourceResult, TNextResult> Next { get; }
 
         #region .ctr
 
         public Activity(IActivity<TSource, TSourceResult> current, IActivity<TSourceResult, TNextResult> next)
-            : base(null, null)
+            : base(current, next)
         {
-            _current = current;
-            _next = next;
+            Current = current;
+            Next = next;
         }
 
         public Activity(IActivity<TSource, TSourceResult> current, IActivity<TSourceResult> next)
-            : base(null, next)
+            : base(current, next)
         {
-            _current = current;
+            Current = current;
         }
 
         public Activity(IActivity<TSource, TSourceResult> current, IActivity next)
-            : base(null, next)
+            : base(current, next)
         {
-            _current = current;
+            Current = current;
         }
 
         public Activity(IActivity<TSource> current, IActivity<TSourceResult, TNextResult> next)
-            : base(current, null)
+            : base(current, next)
         {
-            _next = next;
+            Next = next;
         }
 
         public Activity(IActivity current, IActivity<TSourceResult, TNextResult> next)
-            : base(current, null)
+            : base(current, next)
         {
-            _next = next;
+            Next = next;
         }
 
         public Activity(IActivity<TSource> current, IActivity<TSourceResult> next)
@@ -99,30 +100,16 @@ namespace Engine
 
         #endregion
 
-        public Task ExecuteAsync(TSource source, Func<TNextResult, Task> next, CancellationToken token = default)
+        public Task ExecuteAsync(TSource source, Func<TNextResult, Task> next = default, CancellationToken token = default)
         {
-            if (_current != null && _next != null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is presented", "Activity{T1,T2,T3}");
-                return _current.ExecuteAsync(source, result => _next.ExecuteAsync(result, next, token), token);
-            }
-            else if (_current != null && _next == null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is not presented", "Activity{T1,T2,T3}");
-                return _current.ExecuteAsync(source, _ => ExecuteAsync(default, () => next(default), token), token);
-            }
-            else if (_current == null && _next != null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is presented", "Activity{T1,T2,T3}");
-                return ExecuteAsync(source, () => _next.ExecuteAsync(default, () => next(default), token), token);
-            }
-            else if (_current == null && _next == null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is not presented", "Activity{T1,T2,T3}");
-                return ExecuteAsync(source, () => next(default), token);
-            }
-            Debug.WriteLine("Invalid event!", "Activity{T1,T2,T3}");
-            return Task.CompletedTask;
+            next ??= ActivityExtensions.CompleteTask;
+            var result = Task.CompletedTask;
+            ActivityExtensions.Fork(Current, Next,
+                bothExists: () => result = Current.ExecuteAsync(source, result => Next.ExecuteAsync(result, next, token), token),
+                currentExists: () => result = Current.ExecuteAsync(source, _ => ExecuteAsync(default, () => next(default), token), token),
+                nextExists: () => result = ExecuteAsync(source, () => Next.ExecuteAsync(default, () => next(default), token), token),
+                bothEmpty: () => result = ExecuteAsync(source, () => next(default), token));
+            return result;
         }
     }
 
@@ -131,30 +118,31 @@ namespace Engine
     /// Executes with input but has no output
     /// </summary>
     /// <typeparam name="TSource"></typeparam>
+    [DebuggerDisplay("{Current} -> {Next}")]
     public class Activity<TSource> : Activity, IActivity<TSource>
     {
-        private readonly IActivity<TSource> _current;
-        private readonly IActivity<TSource> _next;
+        new public IActivity<TSource> Current { get; }
+        new public IActivity<TSource> Next { get; }
 
         #region .ctr
 
         public Activity(IActivity<TSource> current, IActivity<TSource> next)
-            : base(null, null)
+            : base(current, next)
         {
-            _current = current;
-            _next = next;
+            Current = current;
+            Next = next;
         }
 
         public Activity(IActivity<TSource> current, IActivity next)
             : base(null, next)
         {
-            _current = current;
+            Current = current;
         }
 
         public Activity(IActivity current, IActivity<TSource> next)
             : base(current, null)
         {
-            _next = next;
+            Next = next;
         }
 
         public Activity(IActivity current, IActivity next)
@@ -164,30 +152,16 @@ namespace Engine
 
         #endregion
 
-        public Task ExecuteAsync(TSource source, Func<Task> next, CancellationToken token = default)
+        public Task ExecuteAsync(TSource source, Func<Task> next = default, CancellationToken token = default)
         {
-            if (_current != null && _next != null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is presented", "Activity{T}");
-                return _current.ExecuteAsync(source, () => _next.ExecuteAsync(default, next, token), token);
-            }
-            else if (_current != null && _next == null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is not presented", "Activity{T}");
-                return _current.ExecuteAsync(source, () => ExecuteAsync(next, token), token);
-            }
-            else if (_current == null && _next != null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is presented", "Activity{T}");
-                return ExecuteAsync(() => _next.ExecuteAsync(default, next, token), token);
-            }
-            else if (_current == null && _next == null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is not presented", "Activity{T}");
-                return ExecuteAsync(next, token);
-            }
-            Debug.WriteLine("Invalid event!", "Activity{T}");
-            return Task.CompletedTask;
+            next ??= ActivityExtensions.EmptyCompleteTask;
+            var result = Task.CompletedTask;
+            ActivityExtensions.Fork(Current, Next,
+                bothExists: () => result = Current.ExecuteAsync(source, () => Next.ExecuteAsync(default, next, token), token),
+                currentExists: () => result = Current.ExecuteAsync(source, () => ExecuteAsync(next, token), token),
+                nextExists: () => result = ExecuteAsync(() => Next.ExecuteAsync(default, next, token), token),
+                bothEmpty: () => result = ExecuteAsync(next, token));
+            return result;
         }
     }
 
@@ -195,41 +169,34 @@ namespace Engine
     /// <summary>
     /// Executes without inputs and has no output
     /// </summary>
+    [DebuggerDisplay("{Current} -> {Next}")]
     public class Activity : IActivity
     {
-        private readonly IActivity _current;
-        private readonly IActivity _next;
+        public IActivity Current { get; }
+        public IActivity Next { get; }
 
         public Activity(IActivity current, IActivity next)
         {
-            _current = current;
-            _next = next;
+            Current = current;
+            Next = next;
         }
 
-        public Task ExecuteAsync(Func<Task> next, CancellationToken token = default)
+        public virtual Activity<TSource, TSourceResult, TNextResult> ConvertTo<TSource, TSourceResult, TNextResult>()
+            => new Activity<TSource, TSourceResult, TNextResult>(Current, Next);
+
+        public virtual Activity<TSource> ConvertTo<TSource>()
+            => new Activity<TSource>(Current, Next);
+
+        public Task ExecuteAsync(Func<Task> next = default, CancellationToken token = default)
         {
-            if (_current != null && _next != null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is presented", "Activity");
-                return _current.ExecuteAsync(() => _next.ExecuteAsync(next, token), token);
-            }
-            else if (_current != null && _next == null)
-            {
-                Debug.WriteLine("[Current] is presented AND [Next] is not presented", "Activity");
-                return _current.ExecuteAsync(next, token);
-            }
-            else if (_current == null && _next != null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is presented", "Activity");
-                return _next.ExecuteAsync(next, token);
-            }
-            else if (_current == null && _next == null)
-            {
-                Debug.WriteLine("[Current] is not presented AND [Next] is not presented", "Activity");
-                return next();
-            }
-            Debug.WriteLine("Invalid event!", "Activity");
-            return Task.CompletedTask;
+            next ??= ActivityExtensions.EmptyCompleteTask;
+            var result = Task.CompletedTask;
+            ActivityExtensions.Fork(Current, Next,
+                bothExists: () => result = Current.ExecuteAsync(() => Next.ExecuteAsync(next, token), token),
+                currentExists: () => result = Current.ExecuteAsync(next, token),
+                nextExists: () => result = Next.ExecuteAsync(next, token),
+                bothEmpty: () => result = next());
+            return result;
         }
     }
 }

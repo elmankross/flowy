@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 
 namespace Engine.Activities
 {
-    [Metadata(Category = "Outputes", Description = "Write message to console", Name = "WriteToConsole")]
-    public class WriteToConsole : IActivity<string>
+    [DebuggerDisplay("Console")]
+    [Metadata(Category = "System", Description = "Write message to console", Name = "Console")]
+    public class ConsoleActivity : IActivity<string>
     {
         public Task ExecuteAsync(Func<Task> next, CancellationToken token = default)
         {

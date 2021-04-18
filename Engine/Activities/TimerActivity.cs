@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 
 namespace Engine.Activities
 {
+    [DebuggerDisplay("Timer")]
     [Metadata(Category = "Triggers", Description = "Executes every times", Name = "Timer")]
-    public sealed class Timer : IActivity
+    public sealed class TimerActivity : IActivity
     {
         public TimeSpan Interval { get; set; }
 

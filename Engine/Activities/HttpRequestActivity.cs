@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace Engine.Activities
 {
-    public class HttpRequest<TSource, TResult> : IActivity<TSource, TResult>
+    [DebuggerDisplay("HttpRequest")]
+    [Metadata(Category = "Http", Description = "Executes http request", Name = "HttpRequest")]
+    public class HttpRequestActivity<TSource, TResult> : IActivity<TSource, TResult>
     {
         public HttpClient HttpClient { get; set; }
         public Func<TSource, HttpClient, Task<TResult>> Selector { get; set; }
