@@ -1,12 +1,7 @@
 ﻿namespace Engine
 {
-    public static class It
+    public sealed class It
     {
-        /// <summary>
-        /// Nothing to accept
-        /// </summary>
-        public struct NothingToAccept
-        {
-        }
+        public struct Nothing { }
     }
 }
