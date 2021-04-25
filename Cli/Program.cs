@@ -1,5 +1,6 @@
 ﻿using Engine;
 using Engine.Activities;
+using Engine.Designer;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -53,6 +54,10 @@ namespace Cli
                     };
                 })
                 .Build();
+
+
+            var scene = FlowScene.Build(flow);
+            var json = JsonSerializer.Serialize(scene);
 
             for (var i = 1; i <= 32; i *= 4)
             {

@@ -9,8 +9,10 @@ namespace Engine
     /// </summary>
     public class ActivityGroup : IActivity
     {
-        protected IActivity CurrentWithoutInput { get; }
-        protected IActivity NextWithoutInput { get; }
+        public IActivityMeta Meta { get; }
+
+        public IActivity CurrentWithoutInput { get; }
+        public IActivity NextWithoutInput { get; }
 
         /// <summary>
         /// ([X] -> [X], [X] -> [X]) With no input and output
@@ -33,9 +35,9 @@ namespace Engine
     /// <typeparam name="TAccept"></typeparam>
     public class ActivityGroup<TAccept> : ActivityGroup, IActivity<TAccept>
     {
-        protected IActivity<TAccept> CurrentWithoutOutput { get; }
-        protected IActivity<TAccept, TAccept> CurrentWithOutput { get; }
-        protected IActivity<TAccept> NextWithInput { get; }
+        public IActivity<TAccept> CurrentWithoutOutput { get; }
+        public IActivity<TAccept, TAccept> CurrentWithOutput { get; }
+        public IActivity<TAccept> NextWithInput { get; }
 
         /// <summary>
         /// (I -> [X], [X] -> [X]) Accepts first and not returned after
@@ -67,7 +69,7 @@ namespace Engine
                 return CurrentWithoutOutput.ExecuteAsync(accept, () => NextWithoutInput.ExecuteAsync(next, token), token);
             }
 
-            if(NextWithInput != null)
+            if (NextWithInput != null)
             {
                 return CurrentWithOutput.ExecuteAsync(accept, result => NextWithInput.ExecuteAsync(result, next, token), token);
             }
@@ -85,8 +87,8 @@ namespace Engine
     /// <typeparam name="TReturnNext"></typeparam>
     public class ActivityGroup<TAccept, TReturnCurrent, TReturnNext> : ActivityGroup<TAccept>, IActivity<TAccept, TReturnNext>
     {
-        new protected IActivity<TAccept, TReturnCurrent> CurrentWithOutput { get; }
-        protected IActivity<TReturnCurrent, TReturnNext> NextWithOutput { get; }
+        public new IActivity<TAccept, TReturnCurrent> CurrentWithOutput { get; }
+        public IActivity<TReturnCurrent, TReturnNext> NextWithOutput { get; }
 
         /// <summary>
         /// (I -> O1, O1 -> O2) Accepts input, convert it to another type and returns

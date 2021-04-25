@@ -6,6 +6,7 @@ namespace Engine.Tests.Activities
 {
     public sealed class Accepts<TValue> : IActivity<TValue>
     {
+        public IActivityMeta Meta => throw new NotImplementedException();
         public TValue Value { get; private set; }
 
         public Task ExecuteAsync(TValue accept, Func<Task> next, CancellationToken token)

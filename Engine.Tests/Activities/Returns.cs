@@ -6,6 +6,7 @@ namespace Engine.Tests.Activities
 {
     public sealed class Returns<TAccept, TReturn> : IActivity<TAccept, TReturn>
     {
+        public IActivityMeta Meta => throw new NotImplementedException();
         public Func<TAccept, TReturn> Selector { private get; set; }
 
         public Task ExecuteAsync(TAccept accept, Func<TReturn, Task> next, CancellationToken token)

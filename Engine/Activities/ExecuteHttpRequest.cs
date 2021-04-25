@@ -7,6 +7,12 @@ namespace Engine.Activities
 {
     public class ExecuteHttpRequest<TAccept, TReturn> : IActivity<TAccept, TReturn>
     {
+        public IActivityMeta Meta { get; } = new ActivityMeta
+        {
+            [ActivityMeta.Key.Name] = "HttpRequest",
+            [ActivityMeta.Key.Description] = "Executes http request with result or without it"
+        };
+
         public Func<HttpClient> HttpClientFactory { private get; set; }
         public Func<TAccept, HttpClient, Task<TReturn>> Action { private get; set; }
 

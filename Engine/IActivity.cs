@@ -10,6 +10,7 @@ namespace Engine
     public interface IActivity
     {
         Task ExecuteAsync(Func<Task> next, CancellationToken token);
+        IActivityMeta Meta { get; }
     }
 
     /// <summary>
